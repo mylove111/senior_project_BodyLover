@@ -1,0 +1,50 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  
+  /* Vant Theme Overrides (Optional) */
+  --van-primary-color: #1989fa;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #f7f8fa;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Optional: Constrain width on large screens to look like a phone */
+@media (min-width: 768px) {
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    background-color: #fff;
+    min-height: 100vh;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    position: relative; /* Context for absolute positioning */
+  }
+
+  /* Fix Vant Tabbar on Desktop */
+  .van-tabbar {
+    position: absolute !important;
+    max-width: 480px;
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+
+  /* Fix Vant NavBar on Desktop */
+  .van-nav-bar--fixed {
+    position: absolute !important;
+    max-width: 480px;
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+}

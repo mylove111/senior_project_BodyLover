@@ -1,0 +1,26 @@
+{
+  "name": "bodylover-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@capacitor/android": "^5.5.1",
+    "@capacitor/core": "^5.5.1",
+    "axios": "^1.6.2",
+    "echarts": "^5.4.3",
+    "pinia": "^2.1.7",
+    "vant": "^4.8.0",
+    "vue": "^3.3.4",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.5.1",
+    "@vitejs/plugin-vue": "^4.6.2",
+    "vite": "^4.4.5"
+  }
+}
