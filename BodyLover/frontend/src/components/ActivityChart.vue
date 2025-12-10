@@ -10,6 +10,10 @@ const props = defineProps({
   title: {
     type: String,
     default: 'Activity Chart'
+  },
+  chartType: {
+    type: String,
+    default: 'bar' // 'bar' or 'line'
   }
 });
 
@@ -47,11 +51,17 @@ const updateChart = () => {
     series: [
       {
         data: values,
-        type: 'bar',
+        type: props.chartType,
         itemStyle: {
           color: '#1989fa'
         },
-        smooth: true
+        smooth: true,
+        areaStyle: props.chartType === 'line' ? {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(25, 137, 250, 0.5)' },
+              { offset: 1, color: 'rgba(25, 137, 250, 0)' }
+            ])
+        } : null
       }
     ]
   };

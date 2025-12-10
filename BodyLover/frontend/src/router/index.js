@@ -6,9 +6,9 @@ const routes = [
     { path: '/', redirect: '/login' },
     { path: '/login', component: Login },
     { path: '/register', component: Register },
-    { path: '/teenager', component: () => import('../views/TeenagerDashboard.vue') }, // Placeholder
-    { path: '/adult', component: () => import('../views/AdultDashboard.vue') }, // Placeholder
-    { path: '/senior', component: () => import('../views/SeniorDashboard.vue') } // Placeholder
+    { path: '/teenager', component: () => import('../views/TeenagerDashboard.vue') },
+    { path: '/adult', component: () => import('../views/AdultDashboard.vue') },
+    { path: '/senior', component: () => import('../views/SeniorDashboard.vue') }
 ];
 
 const router = createRouter({

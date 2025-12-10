@@ -13,6 +13,7 @@ public class FamilyRelation {
     private Long id;
     private Long requesterId;
     private Long receiverId;
+    private String relationType; // FATHER_SON, MOTHER_SON, etc.
     private String status; // PENDING, ACCEPTED, REJECTED
     private LocalDateTime createdAt;
 }

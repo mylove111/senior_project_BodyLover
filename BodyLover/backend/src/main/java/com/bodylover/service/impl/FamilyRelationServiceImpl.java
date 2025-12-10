@@ -23,7 +23,7 @@ public class FamilyRelationServiceImpl extends ServiceImpl<FamilyRelationMapper,
     private UserMapper userMapper;
 
     @Override
-    public void sendRequest(Long requesterId, String targetUsername) {
+    public void sendRequest(Long requesterId, String targetUsername, String relationType) {
         // Find target user
         QueryWrapper<User> userQuery = new QueryWrapper<>();
         userQuery.eq("username", targetUsername);
@@ -50,6 +50,7 @@ public class FamilyRelationServiceImpl extends ServiceImpl<FamilyRelationMapper,
         FamilyRelation relation = new FamilyRelation();
         relation.setRequesterId(requesterId);
         relation.setReceiverId(targetUser.getId());
+        relation.setRelationType(relationType);
         relation.setStatus("PENDING");
         relation.setCreatedAt(LocalDateTime.now());
         save(relation);
@@ -69,30 +70,112 @@ public class FamilyRelationServiceImpl extends ServiceImpl<FamilyRelationMapper,
             map.put("id", r.getId());
             map.put("requesterName", requester.getUsername());
             map.put("requesterMode", requester.getMode());
+            // Receiver views Requester: so we need reciprocal
+            map.put("relationDisplay", getReciprocalRelation(r.getRelationType())); 
             result.add(map);
         }
         return result;
     }
 
+    @Autowired
+    private com.bodylover.mapper.PlanMapper planMapper;
+
     @Override
-    public List<Map<String, Object>> getFamilyMembers(Long userId) {
+    public List<Map<String, Object>> getFamilyMembers(Long userId, String dateStr) {
         QueryWrapper<FamilyRelation> query = new QueryWrapper<>();
         query.and(wrapper -> wrapper.eq("requester_id", userId).or().eq("receiver_id", userId));
         query.eq("status", "ACCEPTED");
         List<FamilyRelation> relations = list(query);
 
         List<Map<String, Object>> result = new ArrayList<>();
+        java.time.LocalDate targetDate = (dateStr != null && !dateStr.isEmpty()) 
+            ? java.time.LocalDate.parse(dateStr) 
+            : java.time.LocalDate.now();
+
         for (FamilyRelation r : relations) {
-            Long otherId = r.getRequesterId().equals(userId) ? r.getReceiverId() : r.getRequesterId();
+            boolean isRequester = r.getRequesterId().equals(userId);
+            Long otherId = isRequester ? r.getReceiverId() : r.getRequesterId();
             User otherUser = userMapper.selectById(otherId);
+            
             Map<String, Object> map = new HashMap<>();
             map.put("id", otherUser.getId());
             map.put("username", otherUser.getUsername());
             map.put("mode", otherUser.getMode());
             map.put("age", otherUser.getAge());
+            
+            // Calculate Display Relation
+            String relation = r.getRelationType();
+            if (isRequester) {
+                map.put("relationDisplay", getForwardRelation(relation));
+            } else {
+                map.put("relationDisplay", getReciprocalRelation(relation));
+            }
+
+            // Calculate Progress
+            com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.bodylover.entity.Plan> planQuery = new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
+            planQuery.eq("user_id", otherId);
+            planQuery.eq("scheduled_date", targetDate);
+            List<com.bodylover.entity.Plan> todayPlans = planMapper.selectList(planQuery);
+
+            int total = todayPlans.size();
+            long completed = todayPlans.stream().filter(p -> "COMPLETED".equals(p.getStatus())).count();
+            int progress = total == 0 ? 0 : (int)((completed * 100) / total);
+            
+            map.put("totalPlans", total);
+            map.put("completedPlans", completed);
+            map.put("progress", progress);
+
             result.add(map);
         }
         return result;
+    }
+
+    // Helper: If I am Requester (Initiator), who is the other person to me?
+    // e.g. If type is FATHER_SON (Requester is Father), then other is Son.
+    // e.g. If type is SON_FATHER (Requester is Son), then other is Father.
+    private String getForwardRelation(String type) {
+        if (type == null) return "Family";
+        switch (type) {
+            case "FATHER_SON": return "Son";
+            case "MOTHER_SON": return "Son";
+            case "GRANDFATHER_GRANDSON": return "Grandson";
+            case "GRANDMOTHER_GRANDSON": return "Grandson";
+            case "GRANDFATHER_GRANDDAUGHTER": return "Granddaughter";
+            case "GRANDMOTHER_GRANDDAUGHTER": return "Granddaughter";
+            
+            // Inverse types (Requester is the child/grandchild)
+            case "SON_FATHER": return "Father";
+            case "SON_MOTHER": return "Mother";
+            case "GRANDSON_GRANDFATHER": return "Grandfather";
+            case "GRANDSON_GRANDMOTHER": return "Grandmother";
+            case "GRANDDAUGHTER_GRANDFATHER": return "Grandfather";
+            case "GRANDDAUGHTER_GRANDMOTHER": return "Grandmother";
+            default: return "Relative";
+        }
+    }
+
+    // Helper: If I am Receiver, who is the Requester to me?
+    // e.g. If type is FATHER_SON (Requester is Father), then Requester is Father.
+    // e.g. If type is SON_FATHER (Requester is Son), then Requester is Son.
+    private String getReciprocalRelation(String type) {
+        if (type == null) return "Family";
+        switch (type) {
+            case "FATHER_SON": return "Father";
+            case "MOTHER_SON": return "Mother";
+            case "GRANDFATHER_GRANDSON": return "Grandfather";
+            case "GRANDMOTHER_GRANDSON": return "Grandmother";
+            case "GRANDFATHER_GRANDDAUGHTER": return "Grandfather";
+            case "GRANDMOTHER_GRANDDAUGHTER": return "Grandmother";
+            
+            // Inverse types
+            case "SON_FATHER": return "Son";
+            case "SON_MOTHER": return "Son";
+            case "GRANDSON_GRANDFATHER": return "Grandson";
+            case "GRANDSON_GRANDMOTHER": return "Grandson";
+            case "GRANDDAUGHTER_GRANDFATHER": return "Granddaughter";
+            case "GRANDDAUGHTER_GRANDMOTHER": return "Granddaughter";
+            default: return "Relative";
+        }
     }
 
     @Override

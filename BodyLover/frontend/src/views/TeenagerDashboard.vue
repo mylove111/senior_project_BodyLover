@@ -5,21 +5,33 @@ import { showToast, showDialog } from 'vant';
 import api from '../api/request';
 import { useUserStore } from '../stores/user';
 import ActivityChart from '../components/ActivityChart.vue';
+import confetti from 'canvas-confetti';
 
 const router = useRouter();
 const userStore = useUserStore();
 const activeTab = ref('plans');
+const familyBadge = ref('');
+const newCompletions = ref([]);
 
-// Chart Data (Mock for now, can be real later)
-const chartData = ref([
-  { date: 'Mon', value: 1.5 },
-  { date: 'Tue', value: 2.0 },
-  { date: 'Wed', value: 0.5 },
-  { date: 'Thu', value: 3.0 },
-  { date: 'Fri', value: 1.0 },
-  { date: 'Sat', value: 4.0 },
-  { date: 'Sun', value: 2.5 }
-]);
+const playSuccessSound = () => {
+    const audio = new Audio('http://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a');
+    audio.play().catch(e => console.log('Audio play failed', e));
+};
+
+
+// Chart Data
+const chartData = ref([]);
+
+const fetchStats = async () => {
+    try {
+        const res = await api.get('/plans/stats', { params: { userId: userStore.userInfo?.id } });
+        if (res.data.code === 200) {
+            chartData.value = res.data.data;
+        }
+    } catch (error) {
+        console.error('Failed to fetch stats', error);
+    }
+};
 
 // Plans Data
 const plans = ref([]);
@@ -44,6 +56,7 @@ const familyMembers = ref([]);
 const pendingRequests = ref([]);
 const showAddFamily = ref(false);
 const targetUsername = ref('');
+const selectedRelation = ref('SON_FATHER');
 
 const selectedRecord = ref(null);
 
@@ -283,8 +296,12 @@ const fetchHealthRecords = async () => {
 // Fetch Family Data
 const fetchFamilyData = async () => {
   try {
-    const membersRes = await api.get('/family/members', { params: { userId: userStore.userInfo?.id } });
-    if (membersRes.data.code === 200) familyMembers.value = membersRes.data.data;
+    const dateStr = formatDate(currentDate.value);
+    const membersRes = await api.get('/family/members', { params: { userId: userStore.userInfo?.id, date: dateStr } });
+    if (membersRes.data.code === 200) {
+        familyMembers.value = membersRes.data.data;
+        checkFamilyNotifications();
+    }
 
     const requestsRes = await api.get('/family/requests', { params: { userId: userStore.userInfo?.id } });
     if (requestsRes.data.code === 200) pendingRequests.value = requestsRes.data.data;
@@ -292,6 +309,42 @@ const fetchFamilyData = async () => {
     console.error(error);
   }
 };
+
+// Check for 100% completion notifications
+const checkFamilyNotifications = () => {
+    newCompletions.value = [];
+    familyBadge.value = '';
+
+    familyMembers.value.forEach(member => {
+        if (member.progress === 100) {
+            newCompletions.value.push(member);
+            familyBadge.value = 'dot';
+        }
+    });
+};
+
+import { watch } from 'vue';
+watch(activeTab, (newVal) => {
+    if (newVal === 'family' && newCompletions.value.length > 0) {
+        familyBadge.value = '';
+        const message = newCompletions.value.map(m => `${m.relationDisplay} (${m.username})`).join(', ');
+        
+        // Sound and Confetti
+        playSuccessSound();
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
+
+        showDialog({
+            title: '🎉 Congratulations!',
+            message: `${message} has completed all tasks today!\n\nDon't let them beat you! Finish yours now! 💪`,
+            theme: 'round-button',
+            confirmButtonText: 'Got it!'
+        });
+    }
+});
 
 // Add Family Request
 const onAddFamily = async () => {
@@ -302,7 +355,8 @@ const onAddFamily = async () => {
   try {
     const res = await api.post('/family/request', {
       requesterId: userStore.userInfo.id,
-      targetUsername: targetUsername.value
+      targetUsername: targetUsername.value,
+      relationType: selectedRelation.value
     });
     if (res.data.code === 200) {
       showToast('Request sent');
@@ -376,6 +430,7 @@ const completePlan = async (plan) => {
     await api.put(`/plans/${plan.id}`, { status: 'COMPLETED' });
     plan.status = 'COMPLETED';
     showToast('Task completed!');
+    fetchStats();
   } catch (error) {
     showToast('Operation failed');
   }
@@ -404,6 +459,7 @@ const formatTime = (seconds) => {
 // Date Management
 const currentDate = ref(new Date());
 const showCalendar = ref(false);
+const minDate = new Date(new Date().setFullYear(new Date().getFullYear() - 1)); // Allow 1 year back
 const formatDate = (date) => {
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 };
@@ -487,7 +543,8 @@ const finishTimer = async (completed) => {
     });
     activePlan.value.status = 'COMPLETED';
     showToast(`Completed! Recorded ${actualMinutes} mins`);
-    fetchPlans(); // Refresh list
+    fetchPlans();
+    fetchStats(); // Update chart // Refresh list
     // Refresh chart if needed (we need to implement chart refresh logic)
   } catch (error) {
     showToast('Failed to save');
@@ -502,6 +559,7 @@ onMounted(() => {
   fetchPlans();
   fetchHealthRecords();
   fetchFamilyData();
+  fetchStats();
 });
 </script>
 
@@ -513,8 +571,14 @@ onMounted(() => {
       <!-- Plans Tab -->
       <div v-if="activeTab === 'plans'">
         <div class="header-action">
-          <h2>Plans for {{ currentDateStr }}</h2>
+          <h2>My Plans</h2>
           <van-button size="small" type="primary" icon="plus" @click="showAddPlan = true">Add Plan</van-button>
+        </div>
+
+        <!-- Date Picker Header (like Adult) -->
+        <div class="date-header" @click="showCalendar = true">
+             <span>{{ currentDateStr }}</span>
+             <van-icon name="calendar-o" />
         </div>
 
         <!-- Chart Section -->
@@ -630,7 +694,7 @@ onMounted(() => {
         <div v-if="pendingRequests.length > 0" class="section">
           <h3>New Requests</h3>
           <van-cell-group inset>
-            <van-cell v-for="req in pendingRequests" :key="req.id" :title="req.requesterName" :label="'Mode: ' + req.requesterMode">
+            <van-cell v-for="req in pendingRequests" :key="req.id" :title="req.requesterName" :label="'Role: ' + req.relationDisplay">
               <template #right-icon>
                 <van-button size="mini" type="success" @click="handleFamilyRequest(req.id, 'ACCEPTED')">Accept</van-button>
                 <van-button size="mini" type="danger" @click="handleFamilyRequest(req.id, 'REJECTED')" style="margin-left: 5px">Reject</van-button>
@@ -644,7 +708,26 @@ onMounted(() => {
           <h3>My Family</h3>
           <van-empty v-if="familyMembers.length === 0" description="No family members yet" />
           <van-cell-group inset v-else>
-            <van-cell v-for="member in familyMembers" :key="member.id" :title="member.username" :label="member.mode + ' Mode'" icon="user-o" />
+            <van-cell v-for="member in familyMembers" :key="member.id" center>
+                <template #icon>
+                    <van-image round width="45" height="45" :src="`https://api.dicebear.com/7.x/miniavs/svg?seed=${member.username}`" style="margin-right: 12px; border: 2px solid #e8f5e9;" />
+                </template>
+                <template #title>
+                    <div style="font-weight: 700; font-size: 16px; color: #2e7d32;">{{ member.username }}</div>
+                </template>
+                <template #label>
+                    <van-tag type="success" plain size="medium" style="margin-top: 4px;">{{ member.relationDisplay || 'Family' }}</van-tag>
+                    <span style="font-size: 12px; color: #81c784; margin-left: 8px;">{{ member.mode }} Mode</span>
+
+                    <div style="margin-top: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #66bb6a; margin-bottom: 2px;">
+                            <span>Progress</span>
+                            <span>{{ member.progress }}%</span>
+                        </div>
+                        <van-progress :percentage="member.progress" stroke-width="6" :show-pivot="false" color="#4caf50" track-color="#e8f5e9" />
+                    </div>
+                </template>
+            </van-cell>
           </van-cell-group>
         </div>
       </div>
@@ -664,12 +747,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Date Management -->
-        <div class="section">
-          <h3>📅 Date Management</h3>
-          <van-cell title="Current Date" :value="currentDateStr" is-link @click="showCalendar = true" />
-          <p class="hint-text">Select a date to view or add plans for that specific day.</p>
-        </div>
+
 
         <!-- Settings -->
         <div class="section">
@@ -720,18 +798,30 @@ onMounted(() => {
       v-model:show="showAddFamily" 
       title="Add Family Member" 
       show-cancel-button 
+      confirm-button-text="Confirm"
       cancel-button-text="Cancel"
       @confirm="onAddFamily"
     >
       <van-form>
         <van-cell-group inset>
           <van-field v-model="targetUsername" label="Username" placeholder="Enter family's username" />
+          
+          <van-field name="picker" label="He/She is my:">
+            <template #input>
+              <van-radio-group v-model="selectedRelation" direction="horizontal">
+                <van-radio name="SON_FATHER">Father</van-radio>
+                <van-radio name="SON_MOTHER">Mother</van-radio>
+                <van-radio name="GRANDSON_GRANDFATHER">Grandfather</van-radio>
+                <van-radio name="GRANDSON_GRANDMOTHER">Grandmother</van-radio>
+              </van-radio-group>
+            </template>
+          </van-field>
         </van-cell-group>
       </van-form>
     </van-dialog>
 
     <!-- Calendar -->
-    <van-calendar v-model:show="showCalendar" @confirm="onConfirmDate" color="#4caf50" />
+    <van-calendar v-model:show="showCalendar" @confirm="onConfirmDate" color="#4caf50" confirm-text="Confirm" title="Select Date" :min-date="minDate" />
 
     <!-- Focus Timer Overlay -->
     <van-overlay :show="showTimer" @click.stop>
@@ -781,7 +871,7 @@ onMounted(() => {
     <van-tabbar v-model="activeTab">
       <van-tabbar-item name="plans" icon="todo-list-o">Plans</van-tabbar-item>
       <van-tabbar-item name="health" icon="chart-trending-o">Health</van-tabbar-item>
-      <van-tabbar-item name="family" icon="friends-o">Family</van-tabbar-item>
+      <van-tabbar-item name="family" icon="friends-o" :dot="!!familyBadge">Family</van-tabbar-item>
       <van-tabbar-item name="me" icon="user-o">Me</van-tabbar-item>
     </van-tabbar>
   </div>
@@ -815,6 +905,25 @@ onMounted(() => {
   background: linear-gradient(45deg, #2e7d32, #00c853);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Date Picker Header (matching Adult) */
+.date-header {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-weight: 600;
+    color: #2e7d32;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.date-header:active {
+    transform: scale(0.98);
 }
 
 /* Cards */
@@ -1139,5 +1248,13 @@ onMounted(() => {
   font-size: 12px;
   color: #666;
   margin-top: 8px;
+}
+
+/* Fix Calendar z-index to appear above tabbar */
+:deep(.van-calendar) {
+  z-index: 3000 !important;
+}
+:deep(.van-popup--bottom) {
+  z-index: 3000 !important;
 }
 </style>

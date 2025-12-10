@@ -22,7 +22,8 @@ public class FamilyController {
         try {
             Long requesterId = Long.valueOf(payload.get("requesterId").toString());
             String targetUsername = (String) payload.get("targetUsername");
-            familyService.sendRequest(requesterId, targetUsername);
+            String relationType = (String) payload.get("relationType");
+            familyService.sendRequest(requesterId, targetUsername, relationType);
             result.put("code", 200);
             result.put("message", "Request sent successfully");
         } catch (Exception e) {
@@ -47,10 +48,10 @@ public class FamilyController {
     }
 
     @GetMapping("/members")
-    public Map<String, Object> getMembers(@RequestParam Long userId) {
+    public Map<String, Object> getMembers(@RequestParam Long userId, @RequestParam(required = false) String date) {
         Map<String, Object> result = new HashMap<>();
         try {
-            List<Map<String, Object>> members = familyService.getFamilyMembers(userId);
+            List<Map<String, Object>> members = familyService.getFamilyMembers(userId, date);
             result.put("code", 200);
             result.put("data", members);
         } catch (Exception e) {

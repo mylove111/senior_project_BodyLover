@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface FamilyRelationService extends IService<FamilyRelation> {
-    void sendRequest(Long requesterId, String targetUsername);
+    void sendRequest(Long requesterId, String targetUsername, String relationType);
     List<Map<String, Object>> getPendingRequests(Long userId);
-    List<Map<String, Object>> getFamilyMembers(Long userId);
+    List<Map<String, Object>> getFamilyMembers(Long userId, String date);
     void handleRequest(Long relationId, String status);
 }
