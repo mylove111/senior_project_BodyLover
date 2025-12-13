@@ -14,7 +14,7 @@ const familyBadge = ref('');
 const newCompletions = ref([]);
 
 const playSuccessSound = () => {
-    const audio = new Audio('http://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a');
+    const audio = new Audio('/voice/family_finish.mp3');
     audio.play().catch(e => console.log('Audio play failed', e));
 };
 
@@ -55,7 +55,7 @@ const newRecord = ref({
 const familyMembers = ref([]);
 const pendingRequests = ref([]);
 const showAddFamily = ref(false);
-const targetUsername = ref('');
+const targetAccountId = ref('');
 const selectedRelation = ref('SON_FATHER');
 
 const selectedRecord = ref(null);
@@ -348,20 +348,20 @@ watch(activeTab, (newVal) => {
 
 // Add Family Request
 const onAddFamily = async () => {
-  if (!targetUsername.value) {
-    showToast('Please enter username');
+  if (!targetAccountId.value) {
+    showToast('Please enter Account ID');
     return;
   }
   try {
     const res = await api.post('/family/request', {
       requesterId: userStore.userInfo.id,
-      targetUsername: targetUsername.value,
+      targetAccountId: targetAccountId.value,
       relationType: selectedRelation.value
     });
     if (res.data.code === 200) {
       showToast('Request sent');
       showAddFamily.value = false;
-      targetUsername.value = '';
+      targetAccountId.value = '';
     } else {
       showToast(res.data.message || 'Failed');
     }
@@ -804,7 +804,7 @@ onMounted(() => {
     >
       <van-form>
         <van-cell-group inset>
-          <van-field v-model="targetUsername" label="Username" placeholder="Enter family's username" />
+          <van-field v-model="targetAccountId" label="Account ID" placeholder="Enter family's Account ID" />
           
           <van-field name="picker" label="He/She is my:">
             <template #input>
@@ -904,6 +904,7 @@ onMounted(() => {
   margin: 0;
   background: linear-gradient(45deg, #2e7d32, #00c853);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

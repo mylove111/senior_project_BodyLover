@@ -6,6 +6,7 @@ import api from '../api/request';
 
 const router = useRouter();
 
+const accountId = ref('');
 const username = ref('');
 const password = ref('');
 const age = ref('');
@@ -46,6 +47,7 @@ const onSubmit = async () => {
   loading.value = true;
   try {
     const res = await api.post('/auth/register', {
+      accountId: accountId.value,
       username: username.value,
       password: password.value,
       age: parseInt(age.value),
@@ -79,10 +81,17 @@ const onSubmit = async () => {
       <van-form @submit="onSubmit">
         <van-cell-group inset>
           <van-field
+            v-model="accountId"
+            name="accountId"
+            label="Account ID"
+            placeholder="Unique Login ID"
+            :rules="[{ required: true, message: 'Account ID is required' }]"
+          />
+          <van-field
             v-model="username"
             name="Username"
-            label="Username"
-            placeholder="Enter username"
+            label="Nickname"
+            placeholder="Display Name"
             :rules="[{ required: true, message: 'Username is required' }]"
           />
           <van-field

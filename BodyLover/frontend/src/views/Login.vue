@@ -8,7 +8,7 @@ import { useUserStore } from '../stores/user';
 const router = useRouter();
 const userStore = useUserStore();
 
-const username = ref('');
+const accountId = ref('');
 const password = ref('');
 const loading = ref(false);
 
@@ -16,7 +16,7 @@ const onSubmit = async () => {
   loading.value = true;
   try {
     const res = await api.post('/auth/login', {
-      username: username.value,
+      accountId: accountId.value,
       password: password.value
     });
     
@@ -54,11 +54,11 @@ const goToRegister = () => {
     <van-form @submit="onSubmit">
       <van-cell-group inset>
         <van-field
-          v-model="username"
-          name="Username"
-          label="Username"
-          placeholder="Enter username"
-          :rules="[{ required: true, message: 'Username is required' }]"
+          v-model="accountId"
+          name="accountId"
+          label="Account ID"
+          placeholder="Enter Account ID"
+          :rules="[{ required: true, message: 'Account ID is required' }]"
         />
         <van-field
           v-model="password"

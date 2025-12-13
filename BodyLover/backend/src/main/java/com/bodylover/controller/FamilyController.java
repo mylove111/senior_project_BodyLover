@@ -21,9 +21,9 @@ public class FamilyController {
         Map<String, Object> result = new HashMap<>();
         try {
             Long requesterId = Long.valueOf(payload.get("requesterId").toString());
-            String targetUsername = (String) payload.get("targetUsername");
+            String targetAccountId = (String) payload.get("targetAccountId");
             String relationType = (String) payload.get("relationType");
-            familyService.sendRequest(requesterId, targetUsername, relationType);
+            familyService.sendRequest(requesterId, targetAccountId, relationType);
             result.put("code", 200);
             result.put("message", "Request sent successfully");
         } catch (Exception e) {

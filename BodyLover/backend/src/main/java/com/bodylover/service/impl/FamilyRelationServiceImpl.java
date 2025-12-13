@@ -23,10 +23,10 @@ public class FamilyRelationServiceImpl extends ServiceImpl<FamilyRelationMapper,
     private UserMapper userMapper;
 
     @Override
-    public void sendRequest(Long requesterId, String targetUsername, String relationType) {
-        // Find target user
+    public void sendRequest(Long requesterId, String targetAccountId, String relationType) {
+        // Find target user by Account ID (Unique)
         QueryWrapper<User> userQuery = new QueryWrapper<>();
-        userQuery.eq("username", targetUsername);
+        userQuery.eq("account_id", targetAccountId);
         User targetUser = userMapper.selectOne(userQuery);
 
         if (targetUser == null) {

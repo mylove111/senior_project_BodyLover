@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { showToast, showDialog } from 'vant';
 import api from '../api/request';
@@ -13,7 +13,7 @@ const familyBadge = ref('');
 const newCompletions = ref([]);
 
 const playSuccessSound = () => {
-    const audio = new Audio('http://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a');
+    const audio = new Audio('/voice/family_finish.mp3');
     audio.play().catch(e => console.log('Audio play failed', e));
 };
 
@@ -28,18 +28,88 @@ const newPlan = ref({
   planType: 'EXERCISE'
 });
 
-// Diet Suggestions (Mock)
-const todaysMeal = ref({
-    breakfast: 'Oatmeal & Boiled Egg',
-    lunch: 'Steamed Fish & Tofu',
-    dinner: 'Vegetable Soup'
-});
+// Diet Suggestions Data
+const dietTips = [
+    { title: "Low and Slow", desc: "Use steaming, boiling, and stewing methods. Keep oil, salt, and sugar intake low." },
+    { title: "Cook Food Very Soft", desc: "All meals (rice, meat, vegetables) must be cooked soft and tender for easy chewing and digestion." },
+    { title: "Eat Small Portions Often", desc: "If digestion is poor, have 3 smaller main meals and 1-2 small snacks." },
+    { title: "Stay Hydrated", desc: "Encourage drinking plenty of warm water throughout the day." },
+    { title: "Check with Doctor", desc: "If the senior has any existing health issues, consult a doctor before starting." }
+];
+
+const weeklyMeals = [
+    {
+        day: 'Monday',
+        breakfast: { food: 'Millet Porridge (or Oatmeal), 1 Boiled Egg, Dried Pork Floss/Tofu', benefit: 'Good for Stomach & Spleen, Provides Protein. Warm porridge is easy on the stomach.' },
+        lunch: { food: 'Steamed Sea Bass (few bones), Chinese Yam and Carrot Rib Soup, Rice, Stir-fried Cabbage', benefit: 'Boosts Energy and Immunity. Fish protein is easy to absorb.' },
+        dinner: { food: 'Pumpkin and Red Date Congee, Steamed Tofu with Black Beans, Green Vegetables', benefit: 'Calms Nerves, Supports Sleep & Heart. Pumpkin aids digestion.' }
+    },
+    {
+        day: 'Tuesday',
+        breakfast: { food: '1 Slice Whole Wheat Bread, 1 Cup Milk (or Soy Milk), Walnuts/Sesame Paste', benefit: 'Supplies Calcium & Fiber. Good for bones and bowel movements.' },
+        lunch: { food: 'Chicken and Mushroom Soft Noodles, Blanched Shrimp, Steamed Broccoli', benefit: 'Light & Easy to Digest, High Protein. Broccoli is good for anti-aging.' },
+        dinner: { food: 'Mung Bean and Lily Bulb Porridge, Steamed Egg Custard with Minced Meat, Cucumber Salad', benefit: 'Detoxifying, Moisturizes Body. Mung beans cool the body.' }
+    },
+    {
+        day: 'Wednesday',
+        breakfast: { food: 'Corn Grits Porridge, Small Scallion Pancake, Yogurt, Banana', benefit: 'Promotes Bowel Movements. Corn provides fiber; yogurt balances gut.' },
+        lunch: { food: 'Steamed "Lion\'s Head" Meatball, Winter Melon and Dried Shrimp Soup, Rice, Garlic Veggie', benefit: 'Strengthens Muscles, Reduces Swelling. Winter melon helps water retention.' },
+        dinner: { food: 'Mixed Grain Porridge, Cold Wood Ear Mushroom Salad, Plain Steamed Taro', benefit: 'Balanced Grains. Wood ear helps clean blood vessels.' }
+    },
+    {
+        day: 'Thursday',
+        breakfast: { food: 'Oatmeal with Milk, Whole Wheat Toast, Steamed Sweet Potato', benefit: 'Provides Energy, Stabilizes Sugar. Sweet potato has fiber.' },
+        lunch: { food: 'Tomato and Egg Gravy Noodles OR 2 Steamed Buns (Veggie filling)', benefit: 'Simple & Convenient, Vitamin C. Soup-based meals digest easy.' },
+        dinner: { food: 'Lotus Seed and Gordon Euryale Seed Porridge, Blanched Lettuce, Stir-fried Dried Tofu', benefit: 'Supports Kidney Health, Promotes Sleep. Ingredients used for conditioning.' }
+    },
+    {
+        day: 'Friday',
+        breakfast: { food: 'Soy Milk, Small Vegetable Wontons, Apple Slices', benefit: 'Rich in Plant Protein, Hydrating. Wontons are soft and easy to eat.' },
+        lunch: { food: 'Slow-cooked Beef Cubes (Very soft), Mashed Potatoes, Rice, Creamed Cabbage Soup', benefit: 'Replenishes Iron and Protein. Beef boosts blood.' },
+        dinner: { food: 'Crucian Carp and Tofu Soup, Vegetable Pancake, Steamed Egg', benefit: 'High Protein/Low Fat. Fish soup is nutritious.' }
+    },
+    {
+        day: 'Saturday',
+        breakfast: { food: 'Egg Soft Pancake, Black Sesame Paste, Raisins', benefit: 'Good for Brain & Hair, Supplies Calcium. Sesame is good for vitality.' },
+        lunch: { food: 'Fish/Shrimp Meatball Soup, Steamed Dumplings, Shredded Kelp Salad', benefit: 'Balanced Nutrition, Boosts Metabolism. Kelp adds minerals.' },
+        dinner: { food: 'Eight-Treasure Porridge, Stir-fried Chinese Yam, Boiled Cabbage', benefit: 'Comprehensive Nourishment. Supports Lungs and Spleen.' }
+    },
+    {
+        day: 'Sunday',
+        breakfast: { food: 'Fermented Rice Wine with Egg Soup, Small Steamed Bun, Citrus Fruit', benefit: 'Warms Body, Aids Circulation.' },
+        lunch: { food: '"Boat" Congee (Fish/Meat/Egg), Shredded Mixed Salad', benefit: 'Easy on the System. Classic soft meal for digestion.' },
+        dinner: { food: 'Double-boiled Pigeon Soup (or Black Chicken), Purple Sweet Potato, Greens', benefit: 'Restores Vigor, Gentle Tonic. Nutritious soup for energy.' }
+    }
+];
+
+const currentDayIndex = ref(0);
+
+// Initialize to today (0=Mon, ... 6=Sun)
+const initDay = () => {
+    const jsDay = new Date().getDay(); // 0=Sun, 1=Mon...
+    // Map to our array: 0=Mon (index 0), 1=Tue... 6=Sun (index 6)
+    // If Sun (0) -> 6
+    // Else -> jsDay - 1
+    currentDayIndex.value = jsDay === 0 ? 6 : jsDay - 1;
+};
+
+const currentMealPlan = computed(() => weeklyMeals[currentDayIndex.value]);
+
+const prevDay = () => {
+    if (currentDayIndex.value > 0) currentDayIndex.value--;
+    else currentDayIndex.value = 6;
+};
+
+const nextDay = () => {
+    if (currentDayIndex.value < 6) currentDayIndex.value++;
+    else currentDayIndex.value = 0;
+};
 
 // Family Data
 const familyMembers = ref([]);
 const pendingRequests = ref([]);
 const showAddFamily = ref(false);
-const targetUsername = ref('');
+const targetAccountId = ref('');
 const selectedRelation = ref('GRANDFATHER_GRANDSON'); // Default meaningful for senior
 
 // Date
@@ -47,6 +117,23 @@ const currentDate = ref(new Date());
 const formatDate = (date) => {
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 };
+
+// Clock Logic
+const currentTimeStr = ref('');
+let clockInterval = null;
+
+const updateTime = () => {
+    const now = new Date();
+    // 24-hour format: HH:mm:ss
+    currentTimeStr.value = now.toLocaleTimeString('en-GB', { hour12: false });
+};
+
+const greeting = computed(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+});
 
 const fetchPlans = async () => {
     try {
@@ -145,20 +232,20 @@ watch(activeTab, (newVal) => {
 });
 
 const onAddFamily = async () => {
-    if (!targetUsername.value) {
-        showToast('Please enter username');
+    if (!targetAccountId.value) {
+        showToast('Please enter Account ID');
         return;
     }
     try {
         const res = await api.post('/family/request', {
             requesterId: userStore.userInfo.id,
-            targetUsername: targetUsername.value,
+            targetAccountId: targetAccountId.value,
             relationType: selectedRelation.value
         });
         if (res.data.code === 200) {
             showToast('Request sent');
             showAddFamily.value = false;
-            targetUsername.value = '';
+            targetAccountId.value = '';
         } else {
             showToast(res.data.message || 'Failed');
         }
@@ -189,8 +276,18 @@ onMounted(() => {
         router.push('/login');
         return;
     }
+    
+    // Start Clock
+    updateTime();
+    clockInterval = setInterval(updateTime, 1000);
+    
+    initDay(); // Set diet day
     fetchPlans();
     fetchFamilyData();
+});
+
+onUnmounted(() => {
+    if (clockInterval) clearInterval(clockInterval);
 });
 </script>
 
@@ -201,8 +298,8 @@ onMounted(() => {
       <!-- Daily Tab -->
       <div v-if="activeTab === 'daily'">
         <div class="large-header">
-           <h2>🌞 Good Morning, {{ userStore.userInfo?.username }}</h2>
-           <p class="date-display">{{ formatDate(currentDate) }}</p>
+           <h2>🌞 {{ greeting }}, {{ userStore.userInfo?.username }}</h2>
+           <p class="date-display">{{ formatDate(currentDate) }} <span class="time-display">{{ currentTimeStr }}</span></p>
         </div>
 
         <div class="action-card" @click="showAddPlan = true">
@@ -232,17 +329,40 @@ onMounted(() => {
       <div v-if="activeTab === 'diet'">
          <div class="large-header"><h2>🥗 Healthy Eating</h2></div>
          
-         <div class="meal-card">
-             <div class="meal-title">Breakfast</div>
-             <div class="meal-content">{{ todaysMeal.breakfast }}</div>
+         <!-- Tips Banner -->
+         <div class="tips-banner">
+            <div class="banner-title"><van-icon name="warning-o" /> Important Reminders</div>
+            <ul class="tips-list">
+                <li v-for="(tip, idx) in dietTips" :key="idx">
+                    <strong>{{ tip.title }}:</strong> {{ tip.desc }}
+                </li>
+            </ul>
          </div>
-         <div class="meal-card">
-             <div class="meal-title">Lunch</div>
-             <div class="meal-content">{{ todaysMeal.lunch }}</div>
+
+         <!-- Day Navigation -->
+         <div class="day-nav">
+            <van-button icon="arrow-left" round type="primary" color="#ff6f00" @click="prevDay" />
+            <div class="current-day">{{ currentMealPlan.day }}</div>
+            <van-button icon="arrow" round type="primary" color="#ff6f00" @click="nextDay" />
          </div>
-         <div class="meal-card">
-             <div class="meal-title">Dinner</div>
-             <div class="meal-content">{{ todaysMeal.dinner }}</div>
+
+         <!-- Meal Cards -->
+         <div class="meal-group">
+            <div class="meal-card">
+                <div class="meal-title"><span class="icon">🌅</span> Breakfast</div>
+                <div class="meal-content">{{ currentMealPlan.breakfast.food }}</div>
+                <div class="meal-benefit"><van-icon name="like-o" /> {{ currentMealPlan.breakfast.benefit }}</div>
+            </div>
+            <div class="meal-card">
+                <div class="meal-title"><span class="icon">☀️</span> Lunch</div>
+                <div class="meal-content">{{ currentMealPlan.lunch.food }}</div>
+                <div class="meal-benefit"><van-icon name="like-o" /> {{ currentMealPlan.lunch.benefit }}</div>
+            </div>
+            <div class="meal-card">
+                <div class="meal-title"><span class="icon">🌙</span> Dinner</div>
+                <div class="meal-content">{{ currentMealPlan.dinner.food }}</div>
+                <div class="meal-benefit"><van-icon name="like-o" /> {{ currentMealPlan.dinner.benefit }}</div>
+            </div>
          </div>
       </div>
 
@@ -320,9 +440,10 @@ onMounted(() => {
       cancel-button-text="Cancel"
       @confirm="onAddFamily"
     >
+    >
       <van-form>
         <van-cell-group inset>
-          <van-field v-model="targetUsername" label="Username" placeholder="Enter name" size="large" />
+          <van-field v-model="targetAccountId" label="Account ID" placeholder="Enter Account ID" size="large" />
           
           <div style="padding: 10px 16px; font-size: 16px; color: #333;">Choose Relationship:</div>
           <van-radio-group v-model="selectedRelation">
@@ -383,6 +504,11 @@ onMounted(() => {
 .date-display {
     font-size: 20px;
     color: #ff6f00;
+}
+.time-display {
+    margin-left: 15px;
+    font-weight: bold;
+    color: #e65100;
 }
 
 .action-card {
@@ -453,6 +579,65 @@ onMounted(() => {
 .meal-content {
     font-size: 18px;
     color: #558b2f;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+.meal-benefit {
+    font-size: 14px;
+    color: #7cb342;
+    font-style: italic;
+    background: #f1f8e9;
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.meal-title .icon { margin-right: 8px; }
+
+/* Diet Tips Banner */
+.tips-banner {
+    background: #fff3e0;
+    border: 2px solid #ffcc80;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+.banner-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #e65100;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.tips-list {
+    margin: 0;
+    padding-left: 20px;
+}
+.tips-list li {
+    font-size: 14px;
+    color: #bf360c;
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+/* Day Navigation */
+.day-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    padding: 10px 20px;
+    border-radius: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.current-day {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ff6f00;
 }
 
 /* Override Tabbar Size for Accessibility */

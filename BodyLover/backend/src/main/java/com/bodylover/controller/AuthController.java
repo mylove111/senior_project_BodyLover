@@ -35,9 +35,9 @@ public class AuthController {
     public Map<String, Object> login(@RequestBody Map<String, String> payload) {
         Map<String, Object> result = new HashMap<>();
         try {
-            String username = payload.get("username");
+            String accountId = payload.get("accountId");
             String password = payload.get("password");
-            User user = userService.login(username, password);
+            User user = userService.login(accountId, password);
             result.put("code", 200);
             result.put("message", "Login successful");
             result.put("data", user);
