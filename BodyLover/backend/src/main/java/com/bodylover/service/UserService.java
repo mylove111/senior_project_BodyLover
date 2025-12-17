@@ -5,5 +5,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
 
 public interface UserService extends IService<User> {
     User register(User user);
-    User login(String username, String password);
+    User login(String accountId, String password);
+    void updatePoints(Long userId, Integer pointsDelta);
 }

@@ -17,6 +17,9 @@ public class PlanController {
 
     @Autowired
     private PlanService planService;
+    
+    @Autowired
+    private com.bodylover.service.UserService userService;
 
     // Get plans for a specific user (defaults to today if no date provided)
     @GetMapping
@@ -65,7 +68,44 @@ public class PlanController {
                 if (status != null) plan.setStatus(status);
                 
                 if ("COMPLETED".equals(status) && payload.containsKey("actualMinutes")) {
-                    plan.setActualMinutes(Integer.valueOf(payload.get("actualMinutes").toString()));
+                    int minutes = Integer.valueOf(payload.get("actualMinutes").toString());
+                    plan.setActualMinutes(minutes);
+
+                    // Calculate Points
+                    // Calculate Points based on Activity and Duration (User Request)
+                    int points = 0;
+                    String category = plan.getActivityCategory();
+                    
+                    if (category != null) {
+                        double multiplier = 0.5; // Default low (like Walk/Stairs/Back)
+
+                        switch (category.toUpperCase()) {
+                            // Teenager Activities
+                            case "RUN":      multiplier = 2.0; break; // 20 pts / 10 min
+                            case "WALK":     multiplier = 0.5; break; // 5 pts / 10 min
+                            case "YOGA":     multiplier = 1.5; break; // 15 pts / 10 min
+                            case "STAIRS":   multiplier = 0.5; break; // 5 pts / 10 min
+                            case "JUMPING":  multiplier = 1.0; break; // 10 pts / 10 min
+                            
+                            // Adult Activities
+                            case "CHEST":    multiplier = 1.0; break; // 10 pts / 10 min
+                            case "BACK":     multiplier = 0.5; break; // 5 pts / 10 min
+                            case "SHOULDERS":multiplier = 1.0; break; // 10 pts / 10 min
+                            case "ARMS":     multiplier = 1.5; break; // 15 pts / 10 min
+                            case "LEGS":     multiplier = 1.0; break; // 10 pts / 10 min
+                            case "CORE":     multiplier = 2.0; break; // 20 pts / 10 min
+                            
+                            default: multiplier = 0.5;
+                        }
+                        
+                        points = (int) (minutes * multiplier);
+                    } else {
+                         points = minutes / 2; // Default if no category
+                    }
+                    
+                    if (points > 0) {
+                        userService.updatePoints(plan.getUserId(), points);
+                    }
                 }
                 
                 planService.updateById(plan);

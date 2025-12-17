@@ -5,6 +5,7 @@ import { showToast, showDialog } from 'vant';
 import api from '../api/request';
 import { useUserStore } from '../stores/user';
 import ActivityChart from '../components/ActivityChart.vue';
+import RewardTab from '../components/RewardTab.vue';
 import confetti from 'canvas-confetti';
 
 const router = useRouter();
@@ -132,7 +133,8 @@ const newPlan = ref({
   title: '',
   content: '',
   durationHours: '',
-  planType: 'EXERCISE'
+  planType: 'EXERCISE',
+  activityCategory: 'CHEST'
 });
 
 // Family Data
@@ -486,6 +488,9 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Reward Tab -->
+      <RewardTab v-if="activeTab === 'reward'" />
+
       <!-- Family Tab -->
       <div v-if="activeTab === 'family'">
         <div class="header-action">
@@ -573,6 +578,20 @@ onMounted(() => {
         <van-form>
             <van-cell-group inset>
                 <van-field v-model="newPlan.title" label="Title" placeholder="Gym / Cardio" />
+                
+                <van-field name="picker" label="Muscle Group">
+                  <template #input>
+                    <van-radio-group v-model="newPlan.activityCategory" direction="vertical">
+                      <van-radio name="CHEST" style="margin-bottom: 5px">Chest 💪 (10 pts / 10m)</van-radio>
+                      <van-radio name="BACK" style="margin-bottom: 5px">Back 🦾 (5 pts / 10m)</van-radio>
+                      <van-radio name="SHOULDERS" style="margin-bottom: 5px">Shoulders 🏋️ (10 pts / 10m)</van-radio>
+                      <van-radio name="ARMS" style="margin-bottom: 5px">Arms 💪 (15 pts / 10m)</van-radio>
+                      <van-radio name="LEGS" style="margin-bottom: 5px">Legs 🦵 (10 pts / 10m)</van-radio>
+                      <van-radio name="CORE">Core 🎯 (20 pts / 10m)</van-radio>
+                    </van-radio-group>
+                  </template>
+                </van-field>
+
                 <van-field v-model="newPlan.content" label="Description" type="textarea" />
                 <van-field v-model="newPlan.durationHours" label="Duration (h)" type="number" />
             </van-cell-group>
@@ -613,6 +632,7 @@ onMounted(() => {
     <van-tabbar v-model="activeTab" active-color="#2979ff" inactive-color="#b0bec5">
       <van-tabbar-item name="training" icon="fire-o">Training</van-tabbar-item>
       <van-tabbar-item name="explore" icon="eye-o">Explore</van-tabbar-item>
+      <van-tabbar-item name="reward" icon="gift-o">Reward</van-tabbar-item>
       <van-tabbar-item name="family" icon="friends-o" :dot="!!familyBadge">Family</van-tabbar-item>
       <van-tabbar-item name="me" icon="user-o">Me</van-tabbar-item>
     </van-tabbar>

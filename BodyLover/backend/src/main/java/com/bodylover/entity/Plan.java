@@ -18,6 +18,7 @@ public class Plan {
     private String content;
     private BigDecimal durationHours;
     private Integer actualMinutes; // Actual duration in minutes
+    private String activityCategory; // RUN, WALK
     private String planType; // EXERCISE, DIET
     private String status; // PENDING, COMPLETED
     private LocalDate scheduledDate;

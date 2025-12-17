@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS `users` (
     `password` VARCHAR(100) NOT NULL COMMENT 'Encrypted Password',
     `mode` VARCHAR(20) NOT NULL COMMENT 'User Mode: TEENAGER, ADULT, SENIOR',
     `age` INT COMMENT 'Age',
+    `points` INT DEFAULT 0 COMMENT 'Reward Points',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='User Information';
 
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `plans` (
     `title` VARCHAR(100) NOT NULL COMMENT 'Plan Title',
     `content` TEXT COMMENT 'Detailed Plan Content',
     `duration_hours` DECIMAL(4, 1) DEFAULT 0 COMMENT 'Duration in hours',
+    `activity_category` VARCHAR(50) COMMENT 'Category: RUN, WALK, etc',
     `plan_type` VARCHAR(20) NOT NULL DEFAULT 'EXERCISE' COMMENT 'Type: EXERCISE, DIET',
     `status` VARCHAR(20) DEFAULT 'PENDING' COMMENT 'Status: PENDING, COMPLETED',
     `scheduled_date` DATE NOT NULL COMMENT 'Planned Date',

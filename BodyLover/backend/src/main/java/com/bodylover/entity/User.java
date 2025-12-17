@@ -16,5 +16,6 @@ public class User {
     private String password;
     private String mode; // TEENAGER, ADULT, SENIOR
     private Integer age;
+    private Integer points; // Reward Points for Game
     private LocalDateTime createdAt;
 }

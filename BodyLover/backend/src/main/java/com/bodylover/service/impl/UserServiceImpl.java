@@ -35,4 +35,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         return user;
     }
+    @Override
+    public void updatePoints(Long userId, Integer pointsDelta) {
+        User user = getById(userId);
+        if (user != null) {
+            int currentPoints = user.getPoints() != null ? user.getPoints() : 0;
+            user.setPoints(currentPoints + pointsDelta);
+            updateById(user);
+        }
+    }
 }

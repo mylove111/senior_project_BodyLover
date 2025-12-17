@@ -5,6 +5,7 @@ import { showToast, showDialog } from 'vant';
 import api from '../api/request';
 import { useUserStore } from '../stores/user';
 import ActivityChart from '../components/ActivityChart.vue';
+import RewardTab from '../components/RewardTab.vue';
 import confetti from 'canvas-confetti';
 
 const router = useRouter();
@@ -40,7 +41,10 @@ const newPlan = ref({
   title: '',
   content: '',
   durationHours: '',
-  planType: 'EXERCISE'
+  content: '',
+  durationHours: '',
+  planType: 'EXERCISE',
+  activityCategory: 'RUN'
 });
 
 // Health Data
@@ -601,6 +605,9 @@ onMounted(() => {
           </van-cell-group>
         </div>
       </div>
+      
+      <!-- Reward Tab -->
+      <RewardTab v-if="activeTab === 'reward'" />
 
       <!-- Health Tab -->
       <div v-if="activeTab === 'health'">
@@ -770,6 +777,19 @@ onMounted(() => {
       <van-form>
         <van-cell-group inset>
           <van-field v-model="newPlan.title" label="Title" placeholder="e.g. Morning Run" />
+          
+          <van-field name="picker" label="Activity">
+            <template #input>
+              <van-radio-group v-model="newPlan.activityCategory" direction="vertical">
+                <van-radio name="RUN" style="margin-bottom: 5px">Run 🏃 (20 pts / 10m)</van-radio>
+                <van-radio name="WALK" style="margin-bottom: 5px">Walk 🚶 (5 pts / 10m)</van-radio>
+                <van-radio name="YOGA" style="margin-bottom: 5px">Yoga 🧘 (15 pts / 10m)</van-radio>
+                <van-radio name="STAIRS" style="margin-bottom: 5px">Stairs 🪜 (5 pts / 10m)</van-radio>
+                <van-radio name="JUMPING">Jumping 🤸 (10 pts / 10m)</van-radio>
+              </van-radio-group>
+            </template>
+          </van-field>
+
           <van-field v-model="newPlan.content" label="Content" placeholder="Details..." type="textarea" />
           <van-field v-model="newPlan.durationHours" label="Duration (Hours)" type="number" placeholder="0.5" />
         </van-cell-group>
@@ -871,6 +891,7 @@ onMounted(() => {
     <van-tabbar v-model="activeTab">
       <van-tabbar-item name="plans" icon="todo-list-o">Plans</van-tabbar-item>
       <van-tabbar-item name="health" icon="chart-trending-o">Health</van-tabbar-item>
+      <van-tabbar-item name="reward" icon="gift-o">Reward</van-tabbar-item>
       <van-tabbar-item name="family" icon="friends-o" :dot="!!familyBadge">Family</van-tabbar-item>
       <van-tabbar-item name="me" icon="user-o">Me</van-tabbar-item>
     </van-tabbar>
