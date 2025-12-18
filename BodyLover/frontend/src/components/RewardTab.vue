@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { showDialog, showToast } from 'vant';
 import api from '../api/request';
 import { useUserStore } from '../stores/user';
@@ -7,7 +7,7 @@ import { useUserStore } from '../stores/user';
 const userStore = useUserStore();
 const activeNames = ref('1'); // Accordion mode uses string
 const points = ref(0);
-const apps = ref([
+const allApps = [
     { id: 'tiktok', name: 'TikTok', icon: '/icon/tiktok.jpg', cost: 100, duration: 20, color: '#000000', locked: true, remaining: 0 },
     { id: 'youtube', name: 'YouTube', icon: '/icon/youtube.jpg', cost: 100, duration: 25, color: '#FF0000', locked: true, remaining: 0 },
     { id: 'instagram', name: 'Instagram', icon: '/icon/instagram.jpg', cost: 80, duration: 15, color: '#C13584', locked: true, remaining: 0 },
@@ -19,9 +19,46 @@ const apps = ref([
     { id: 'minecraft', name: 'Minecraft', icon: '/icon/minecraft.jpg', cost: 150, duration: 30, color: '#2C2B2B', locked: true, remaining: 0 },
     { id: 'bilibili', name: 'Bilibili', icon: '/icon/bilibili.jpg', cost: 200, duration: 45, color: '#00A1D6', locked: true, remaining: 0 },
     { id: 'genshin', name: 'Genshin', icon: '/icon/genshin.jpg', cost: 180, duration: 30, color: '#333333', locked: true, remaining: 0 }
-]);
+];
+
+const myApps = ref([]);
+const showAppSelector = ref(false);
+const availableApps = computed(() => {
+    const selectedIds = new Set(myApps.value.map(a => a.id));
+    return allApps.filter(a => !selectedIds.has(a.id));
+});
 
 let timerInterval = null;
+
+const loadMyApps = () => {
+    if (!userStore.userInfo?.id) return;
+    const key = `user_selected_apps_${userStore.userInfo.id}`;
+    const saved = localStorage.getItem(key);
+    
+    if (saved) {
+        const savedIds = JSON.parse(saved);
+        // Restore app objects from IDs
+        myApps.value = allApps.filter(a => savedIds.includes(a.id)).map(original => {
+             return { ...original };
+        });
+    } else {
+        myApps.value = [];
+    }
+};
+
+const addToMyApps = (app) => {
+    myApps.value.push({ ...app });
+    saveMyApps();
+    showAppSelector.value = false;
+    showToast('App Added!');
+};
+
+const saveMyApps = () => {
+    if (!userStore.userInfo?.id) return;
+    const key = `user_selected_apps_${userStore.userInfo.id}`;
+    const ids = myApps.value.map(a => a.id);
+    localStorage.setItem(key, JSON.stringify(ids));
+};
 
 const fetchPoints = async () => {
     try {
@@ -72,14 +109,19 @@ const unlockApp = (app) => {
 };
 
 const startAppTimer = (app, seconds) => {
+    if (!userStore.userInfo?.id) return;
     const endTime = Date.now() + seconds * 1000;
-    localStorage.setItem(`reward_timer_${app.id}`, endTime);
+    const key = `reward_timer_${userStore.userInfo.id}_${app.id}`;
+    localStorage.setItem(key, endTime);
     
     updateAppStatus(app);
 };
 
 const updateAppStatus = (app) => {
-    const storedEnd = localStorage.getItem(`reward_timer_${app.id}`);
+    if (!userStore.userInfo?.id) return;
+    const key = `reward_timer_${userStore.userInfo.id}_${app.id}`;
+    const storedEnd = localStorage.getItem(key);
+    
     if (storedEnd) {
         const remaining = Math.floor((parseInt(storedEnd) - Date.now()) / 1000);
         if (remaining > 0) {
@@ -88,7 +130,7 @@ const updateAppStatus = (app) => {
         } else {
             app.locked = true;
             app.remaining = 0;
-            localStorage.removeItem(`reward_timer_${app.id}`);
+            localStorage.removeItem(key);
         }
     } else {
         app.locked = true;
@@ -104,13 +146,14 @@ const formatTime = (seconds) => {
 
 onMounted(() => {
     fetchPoints();
+    loadMyApps();
     
-    // Initial check
-    apps.value.forEach(app => updateAppStatus(app));
+    // Initial check for myApps
+    myApps.value.forEach(app => updateAppStatus(app));
 
-    // Global timer loop for all apps
+    // Global timer loop for all apps (in myApps)
     timerInterval = setInterval(() => {
-        apps.value.forEach(app => {
+        myApps.value.forEach(app => {
             if (!app.locked) {
                 updateAppStatus(app);
             }
@@ -170,8 +213,9 @@ onUnmounted(() => {
 
       <!-- App Grid -->
       <div class="apps-grid">
+          <!-- My Apps -->
           <div 
-            v-for="app in apps" 
+            v-for="app in myApps" 
             :key="app.id" 
             class="app-item" 
             :class="{ 'is-locked': app.locked }"
@@ -195,7 +239,35 @@ onUnmounted(() => {
                   {{ formatTime(app.remaining) }}
               </div>
           </div>
+
+          <!-- Add Button (Always visible if there are more apps) -->
+          <div class="app-item add-item" @click="showAppSelector = true" v-if="availableApps.length > 0">
+              <div class="app-icon-wrapper add-wrapper">
+                  <van-icon name="plus" />
+              </div>
+              <div class="app-name">Add App</div>
+          </div>
       </div>
+
+      <!-- App Selector Dialog -->
+      <van-dialog v-model:show="showAppSelector" title="Add to Rewards" :show-confirm-button="false" close-on-click-overlay>
+          <div class="app-selector-list">
+              <van-cell 
+                v-for="app in availableApps" 
+                :key="app.id" 
+                :title="app.name" 
+                clickable 
+                @click="addToMyApps(app)"
+              >
+                <template #icon>
+                    <img :src="app.icon" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 6px;" />
+                </template>
+                <template #right-icon>
+                    <van-icon name="plus" color="#1989fa" />
+                </template>
+              </van-cell>
+          </div>
+      </van-dialog>
   </div>
 </template>
 
@@ -292,6 +364,22 @@ onUnmounted(() => {
     height: 60%;
     object-fit: contain;
     transition: filter 0.3s;
+}
+
+.add-wrapper {
+    border-style: dashed;
+    border-color: #ccc;
+    background: transparent !important;
+    color: #999;
+}
+.add-item:active .add-wrapper {
+    background: #f0f0f0 !important;
+}
+
+.app-selector-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px 0;
 }
 
 .app-item:not(.is-locked) .app-icon-wrapper {
